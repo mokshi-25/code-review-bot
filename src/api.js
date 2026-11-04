@@ -40,7 +40,7 @@ Analyze the provided code and respond ONLY with a valid JSON object (no markdown
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 1000,
+      max_tokens: 2000,
       system: systemPrompt,
       messages: [{ role: 'user', content: code }],
     }),
