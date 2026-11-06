@@ -1,14 +1,54 @@
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-sonnet-5-5';
+const KEY_STORAGE = 'cr-bot-api-key';
 
+export function getSavedKey() {
+  try {
+    return localStorage.getItem(KEY_STORAGE) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+export function saveKey(key) {
+  try {
+    if (key) localStorage.setItem(KEY_STORAGE, key);
+    else localStorage.removeItem(KEY_STORAGE);
+  } catch (e) {
+    // If saving fails, the key is only used for this visit
+  }
+}
+
+function demoReview(code) {
+  return {
+    language: 'Demo (sample output)',
+    summary:
+      'This is a sample review shown in demo mode, so it is not about your code. ' +
+      'Add your own Anthropic API key below to get a real review of the code you pasted.',
+    scores: { readability: 7, performance: 8, security: 6, maintainability: 7 },
+    bugs: ['Sample: no input validation, so unexpected values may cause errors.'],
+    improvements: [
+      'Sample: add comments that explain what each function does.',
+      'Sample: use clear variable names.',
+    ],
+    positives: ['Sample: the code is short and easy to follow.'],
+    refactor: '',
+  };
+}
 
 /**
  * Sends code to Claude for review and returns structured feedback.
+ * If no API key is saved, a demo review is returned instead.
  * @param {string} code - The code to review
  * @param {string} lang - The language hint ('auto' or a language name)
  * @returns {Promise<object>} - Parsed review result
  */
 export async function reviewCode(code, lang = 'auto') {
+  const apiKey = getSavedKey();
+  if (!apiKey) {
+    return demoReview(code);
+  }
+
   const langHint = lang === 'auto'
     ? 'Auto-detect the programming language.'
     : `The language is ${lang}.`;
@@ -34,7 +74,7 @@ Analyze the provided code and respond ONLY with a valid JSON object (no markdown
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': 'YOUR_API_KEY_HERE',   // 🔑 Replace with your Anthropic API key
+      'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     },
