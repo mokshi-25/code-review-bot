@@ -1,5 +1,11 @@
-import { reviewCode } from './api.js';
+import { reviewCode, getSavedKey, saveKey } from './api.js';
 import { renderResult } from './renderer.js';
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
 
 export function initApp(root) {
   root.innerHTML = `
@@ -27,6 +33,18 @@ export function initApp(root) {
         </select>
         <button id="review-btn">Review Code</button>
         <button id="clear-btn" style="background:#fff;color:#1a1a1a;border-color:#ddd;">Clear</button>
+      </div>
+
+      <!-- API key box -->
+      <div style="margin:12px 0;padding:12px;border:1px solid #ddd;border-radius:10px;background:#fff;">
+        <div style="font-weight:600;margin-bottom:6px;">🔑 Your Anthropic API key (optional)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input id="key-input" type="password" placeholder="sk-ant-..." autocomplete="off"
+            style="flex:1;min-width:200px;padding:8px;border:1px solid #ddd;border-radius:8px;" />
+          <button id="key-save-btn">Save key</button>
+          <button id="key-remove-btn" style="background:#fff;color:#1a1a1a;border-color:#ddd;">Remove</button>
+        </div>
+        <div id="key-status" style="font-size:13px;margin-top:6px;color:#555;"></div>
       </div>
 
       <!-- File upload drop zone -->
@@ -63,6 +81,38 @@ export function initApp(root) {
   const fileInfo   = root.querySelector('#file-info');
   const fileName   = root.querySelector('#file-name');
   const fileClearBtn = root.querySelector('#file-clear-btn');
+  const keyInput   = root.querySelector('#key-input');
+  const keySaveBtn = root.querySelector('#key-save-btn');
+  const keyRemoveBtn = root.querySelector('#key-remove-btn');
+  const keyStatus  = root.querySelector('#key-status');
+
+  // ── API key box ──
+  function updateKeyStatus() {
+    if (getSavedKey()) {
+      keyStatus.textContent = '✅ Key saved in this browser only. Reviews will be real.';
+    } else {
+      keyStatus.textContent = 'Demo mode: no key saved, so you will see a sample review. Your key stays in your browser and is never uploaded to GitHub.';
+    }
+  }
+
+  keySaveBtn.addEventListener('click', () => {
+    const key = keyInput.value.trim();
+    if (!key) {
+      keyStatus.textContent = '⚠️ Please paste your key first.';
+      return;
+    }
+    saveKey(key);
+    keyInput.value = '';
+    updateKeyStatus();
+  });
+
+  keyRemoveBtn.addEventListener('click', () => {
+    saveKey('');
+    keyInput.value = '';
+    updateKeyStatus();
+  });
+
+  updateKeyStatus();
 
   // ── Review button ──
   reviewBtn.addEventListener('click', async () => {
@@ -73,13 +123,13 @@ export function initApp(root) {
     }
     reviewBtn.disabled = true;
     reviewBtn.textContent = 'Reviewing…';
-    output.innerHTML = '<div class="loading">⏳ Analyzing your code with Claude AI…</div>';
+    output.innerHTML = '<div class="loading">⏳ Analyzing your code…</div>';
 
     try {
       const result = await reviewCode(code, langSelect.value);
       output.innerHTML = renderResult(result);
     } catch (err) {
-      output.innerHTML = `<div class="error">❌ ${err.message}</div>`;
+      output.innerHTML = `<div class="error">❌ ${escapeHtml(err.message)}</div>`;
     } finally {
       reviewBtn.disabled = false;
       reviewBtn.textContent = 'Review Code';
